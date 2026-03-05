@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 from typing import Optional
 
-from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, REFUSAL_MESSAGE
+from config import OLLAMA_BASE_URL, OLLAMA_CHAT_MODEL, REFUSAL_MESSAGE
 from agents.query_classifier import QueryClassifier, QueryCategory
 from agents.knowledge_retriever import KnowledgeRetriever
 from agents.guardrails import PromptGuardrails
@@ -290,11 +290,10 @@ Requirements and process for earning certificates
         self.knowledge_retriever = KnowledgeRetriever()
         self.guardrails = PromptGuardrails()
         self.response_validator = ResponseValidator()
-        
-        # Initialize OpenRouter
-        self.openrouter_api_key = OPENROUTER_API_KEY
-        self.openrouter_model = OPENROUTER_MODEL
-        self.openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
+
+        # Ollama local LLM
+        self.ollama_url = f"{OLLAMA_BASE_URL}/api/chat"
+        self.ollama_model = OLLAMA_CHAT_MODEL
     
     def _get_fallback_response(self, query: str) -> str:
         """Get intelligent fallback response based on query."""
@@ -333,42 +332,33 @@ Requirements and process for earning certificates
             conversation_history=conversation_history
         )
         
-        # Step 4: Try OpenRouter API, fallback on error
+        # Step 4: Call Ollama local LLM
         try:
-            if not self.openrouter_api_key:
-                return self._get_fallback_response(user_query), category, False
-            
-            headers = {
-                "Authorization": f"Bearer {self.openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:8501",
-                "X-Title": "EdTech Learning Assistant"
-            }
-            
             payload = {
-                "model": self.openrouter_model,
+                "model": self.ollama_model,
                 "messages": [
                     {"role": "user", "content": safe_prompt}
-                ]
+                ],
+                "stream": False,
+                "options": {"temperature": 0.7},
             }
-            
+
             response = requests.post(
-                self.openrouter_url,
-                headers=headers,
+                self.ollama_url,
                 json=payload,
-                timeout=60
+                timeout=120,
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            raw_response = result["choices"][0]["message"]["content"]
-            
+            raw_response = result["message"]["content"]
+
             # Step 5: Validate response
             is_safe, validated_response, violations = self.response_validator.validate(raw_response)
             return validated_response, category, False
-            
+
         except Exception as e:
-            # On ANY error (including quota), use fallback
+            print(f"Ollama error: {e}")
             return self._get_fallback_response(user_query), category, False
 
 

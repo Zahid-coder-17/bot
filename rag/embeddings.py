@@ -1,85 +1,46 @@
-"""Embedding generation using Google Gemini API."""
+"""Embedding generation using Ollama local API."""
 
 from typing import List
-import google.generativeai as genai
+import requests
 
-from config import GOOGLE_API_KEY, EMBEDDING_MODEL
+from config import OLLAMA_BASE_URL, EMBEDDING_MODEL, EMBEDDING_DIM
 
 
 class EmbeddingGenerator:
-    """Generate embeddings using Google Gemini API."""
-    
+    """Generate embeddings using Ollama's local embedding endpoint."""
+
     def __init__(self):
-        """Initialize the embedding generator."""
-        if GOOGLE_API_KEY:
-            genai.configure(api_key=GOOGLE_API_KEY)
+        self.base_url = OLLAMA_BASE_URL
         self.model = EMBEDDING_MODEL
-    
-    def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding for a single text.
-        
-        Args:
-            text: Text to embed.
-            
-        Returns:
-            Embedding vector as list of floats.
-        """
+        self._embed_url = f"{self.base_url}/api/embeddings"
+
+    def _call_ollama(self, text: str) -> List[float]:
         try:
-            result = genai.embed_content(
-                model=self.model,
-                content=text,
-                task_type="retrieval_document"
+            response = requests.post(
+                self._embed_url,
+                json={"model": self.model, "prompt": text},
+                timeout=60,
             )
-            return result['embedding']
+            response.raise_for_status()
+            return response.json().get("embedding", [])
         except Exception as e:
             print(f"Error generating embedding: {e}")
             return []
-    
+
+    def generate_embedding(self, text: str) -> List[float]:
+        return self._call_ollama(text)
+
     def generate_query_embedding(self, query: str) -> List[float]:
-        """Generate embedding for a query (optimized for retrieval).
-        
-        Args:
-            query: Query text to embed.
-            
-        Returns:
-            Embedding vector as list of floats.
-        """
-        try:
-            result = genai.embed_content(
-                model=self.model,
-                content=query,
-                task_type="retrieval_query"
-            )
-            return result['embedding']
-        except Exception as e:
-            print(f"Error generating query embedding: {e}")
-            return []
-    
+        return self._call_ollama(query)
+
     def generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings for multiple texts.
-        
-        Args:
-            texts: List of texts to embed.
-            
-        Returns:
-            List of embedding vectors.
-        """
-        embeddings = []
-        for text in texts:
-            embedding = self.generate_embedding(text)
-            embeddings.append(embedding)
-        return embeddings
+        return [self.generate_embedding(t) for t in texts]
 
 
 if __name__ == "__main__":
-    # Test embedding generation
-    generator = EmbeddingGenerator()
-    
-    test_text = "How is course progress tracked on the platform?"
-    embedding = generator.generate_query_embedding(test_text)
-    
-    if embedding:
-        print(f"Generated embedding with {len(embedding)} dimensions")
-        print(f"First 5 values: {embedding[:5]}")
+    gen = EmbeddingGenerator()
+    emb = gen.generate_query_embedding("How is course progress tracked?")
+    if emb:
+        print(f"Embedding dim: {len(emb)}, first 5: {emb[:5]}")
     else:
-        print("Failed to generate embedding. Check API key.")
+        print("Failed. Is Ollama running?")

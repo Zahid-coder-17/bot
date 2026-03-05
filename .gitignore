@@ -11,3 +11,8 @@ service_account.json
 # IDE
 .vscode/
 .idea/
+
+# Local Vector Store
+chroma_db/
+*.npy
+*.json_meta.json

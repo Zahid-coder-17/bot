@@ -6,14 +6,13 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# API Configuration
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+# Ollama Configuration (local)
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-# Model Configuration
-GEMINI_MODEL = "gemini-2.0-flash"
-OPENROUTER_MODEL = "google/gemini-2.0-flash-exp:free"
-EMBEDDING_MODEL = "models/text-embedding-004"
+# Model Configuration — all local via Ollama
+OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:3b")   # already installed
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "qwen2.5:3b")   # same model used for chat
+EMBEDDING_DIM = 1024   # qwen2.5:3b embedding size (Ollama normalises output)
 
 # RAG Configuration
 CHUNK_SIZE = 400
